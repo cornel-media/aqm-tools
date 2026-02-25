@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AQM — Planning de Tournage</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue: #2f557f;
+    --blue-light: #4a7aaa;
+    --blue-pale: #e8f0f8;
+    --blue-dark: #1a3550;
+    --gold: #c8962a;
+    --gold-light: #f5e6c4;
+    --green: #2d6a4f;
+    --green-light: #d8ead1;
+    --orange: #b5541a;
+    --orange-light: #f5e0d0;
+    --red: #9b2335;
+    --red-light: #f5dde0;
+    --purple: #5c3d7a;
+    --purple-light: #ede0f5;
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --text: #1a2535;
+    --text-muted: #6b7a8d;
+    --border: #d0d8e4;
+    --radius: 14px;
+    --shadow: 0 2px 12px rgba(47,85,127,0.10);
+    --shadow-lg: 0 8px 32px rgba(47,85,127,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 120px;
+  }
+
+  header {
+    background: var(--blue-dark);
+    color: white;
+    padding: 20px 24px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+  }
+
+  header .top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  header .label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+  }
+
+  .sync-status {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .sync-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #2d6a4f;
+  }
+
+  .sync-dot.syncing { background: var(--gold); animation: pulse 1s infinite; }
+  .sync-dot.error { background: var(--red); }
+
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+  header h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+  header .subtitle { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+
+  .stats-bar {
+    display: flex;
+    gap: 16px;
+    padding: 12px 24px;
+    background: var(--blue);
+    overflow-x: auto;
+  }
+
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    font-size: 12px;
+    color: rgba(255,255,255,0.85);
+  }
+
+  .stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .stat-count { font-family: 'DM Mono', monospace; font-weight: 500; color: white; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 20px 16px; }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .filter-group { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+
+  .filter-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: white;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+
+  .filter-btn.active {
+    border-color: var(--blue);
+    background: var(--blue-pale);
+    color: var(--blue);
+  }
+
+  .btn-add {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    background: var(--blue);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-add:hover { background: var(--blue-light); }
+  .btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .episode-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 12px;
+    overflow: hidden;
+    border: 1.5px solid transparent;
+    transition: box-shadow 0.15s, border-color 0.15s;
+  }
+
+  .episode-card:hover { box-shadow: var(--shadow-lg); border-color: var(--blue-pale); }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    gap: 12px;
+    cursor: pointer;
+  }
+
+  .ep-number {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 32px;
+  }
+
+  .ep-info { flex: 1; min-width: 0; }
+
+  .ep-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ep-verset {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ep-dates {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    min-width: 90px;
+  }
+
+  .date-chip {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .date-chip.tournage { background: var(--blue-pale); color: var(--blue); }
+  .date-chip.publication { background: var(--gold-light); color: var(--gold); }
+
+  .status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    min-width: 80px;
+    text-align: center;
+  }
+
+  .status-planifie { background: var(--blue-pale); color: var(--blue); }
+  .status-filme { background: var(--orange-light); color: var(--orange); }
+  .status-edite { background: var(--purple-light); color: var(--purple); }
+  .status-publie { background: var(--green-light); color: var(--green); }
+
+  .expand-icon {
+    color: var(--text-muted);
+    font-size: 16px;
+    transition: transform 0.2s;
+    margin-left: 4px;
+  }
+
+  .episode-card.expanded .expand-icon { transform: rotate(180deg); }
+
+  .card-details {
+    display: none;
+    padding: 0 16px 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .episode-card.expanded .card-details { display: block; }
+
+  .details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .detail-field label {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .detail-field input,
+  .detail-field textarea,
+  .detail-field select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+
+  .detail-field input:focus,
+  .detail-field textarea:focus,
+  .detail-field select:focus {
+    outline: none;
+    border-color: var(--blue-light);
+    background: white;
+  }
+
+  .detail-field textarea { resize: vertical; min-height: 60px; }
+  .detail-field.full { grid-column: 1 / -1; }
+
+  .card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    justify-content: flex-end;
+  }
+
+  .btn-save {
+    padding: 7px 16px;
+    background: var(--blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+  }
+
+  .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-delete {
+    padding: 7px 14px;
+    background: var(--red-light);
+    color: var(--red);
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: white;
+    border-radius: var(--radius);
+    padding: 24px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: var(--shadow-lg);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 20px; color: var(--blue-dark); }
+  .modal .detail-field { margin-bottom: 14px; }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: flex-end;
+  }
+
+  .btn-cancel {
+    padding: 9px 18px;
+    background: var(--bg);
+    color: var(--text-muted);
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+  }
+
+  .btn-confirm {
+    padding: 9px 20px;
+    background: var(--blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+  }
+
+  .btn-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state h3 { font-size: 16px; margin-bottom: 8px; color: var(--text); }
+
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--blue-dark);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    z-index: 300;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+
+  .toast.show { opacity: 1; }
+  .toast.error { background: var(--red); }
+
+  @media (max-width: 600px) {
+    .details-grid { grid-template-columns: 1fr; }
+    .ep-dates { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top-row">
+    <span class="label">SDAQC · AQM</span>
+    <span class="sync-status">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span id="sync-label">ClickUp</span>
+    </span>
+  </div>
+  <h1>Planning de Tournage</h1>
+  <div class="subtitle">InspirAction — Saison 2025</div>
+</header>
+
+<div class="stats-bar">
+  <div class="stat"><div class="stat-dot" style="background:#4a7aaa"></div><span class="stat-count" id="count-planifie">0</span> Planifié</div>
+  <div class="stat"><div class="stat-dot" style="background:#b5541a"></div><span class="stat-count" id="count-filme">0</span> Filmé</div>
+  <div class="stat"><div class="stat-dot" style="background:#5c3d7a"></div><span class="stat-count" id="count-edite">0</span> Édité</div>
+  <div class="stat"><div class="stat-dot" style="background:#2d6a4f"></div><span class="stat-count" id="count-publie">0</span> Publié</div>
+</div>
+
+<div class="container">
+  <div class="toolbar">
+    <div class="filter-group">
+      <button class="filter-btn active" onclick="filterEpisodes('all', this)">Tous</button>
+      <button class="filter-btn" onclick="filterEpisodes('planifie', this)">Planifié</button>
+      <button class="filter-btn" onclick="filterEpisodes('filme', this)">Filmé</button>
+      <button class="filter-btn" onclick="filterEpisodes('edite', this)">Édité</button>
+      <button class="filter-btn" onclick="filterEpisodes('publie', this)">Publié</button>
+    </div>
+    <button class="btn-add" onclick="openModal()" id="btn-add">+ Ajouter épisode</button>
+  </div>
+
+  <div id="episodes-list"><div class="loading">⏳ Chargement depuis ClickUp...</div></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2>Nouvel épisode</h2>
+    <div class="detail-field">
+      <label>Titre de l'épisode *</label>
+      <input type="text" id="new-titre" placeholder="ex: La chaise vide">
+    </div>
+    <div class="detail-field">
+      <label>Verset de base</label>
+      <input type="text" id="new-verset" placeholder="ex: Jean 3:16">
+    </div>
+    <div class="detail-field">
+      <label>Présentateur</label>
+      <input type="text" id="new-presentateur" placeholder="ex: Cornel">
+    </div>
+    <div class="detail-field">
+      <label>Date de tournage</label>
+      <input type="date" id="new-tournage">
+    </div>
+    <div class="detail-field">
+      <label>Date de publication</label>
+      <input type="date" id="new-publication">
+    </div>
+    <div class="detail-field">
+      <label>Statut</label>
+      <select id="new-status">
+        <option value="planifie">Planifié</option>
+        <option value="filme">Filmé</option>
+        <option value="edite">Édité</option>
+        <option value="publie">Publié</option>
+      </select>
+    </div>
+    <div class="detail-field">
+      <label>Notes</label>
+      <textarea id="new-notes" placeholder="Notes, décisions, remarques..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+      <button class="btn-confirm" id="btn-confirm" onclick="addEpisode()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── CONFIG ──────────────────────────────────────────────
+  const API_KEY  = 'pk_94141593_1MEPD9Z4U8J5HWMRC0HG45481MR7YVS2';
+  const LIST_ID  = '90131658126';
+  const BASE_URL = 'https://api.clickup.com/api/v2';
+
+  // ClickUp custom field names (must match exactly what you create in ClickUp)
+  // We store extra info in the task description as JSON fallback
+  const STATUS_MAP = {
+    planifie: 'Planifié',
+    filme:    'Filmé',
+    edite:    'Édité',
+    publie:   'Publié'
+  };
+
+  const STATUS_REVERSE = {
+    'planifié': 'planifie',
+    'filmé':    'filme',
+    'édité':    'edite',
+    'publié':   'publie',
+    'planifie': 'planifie',
+    'filme':    'filme',
+    'edite':    'edite',
+    'publie':   'publie',
+    'to do':    'planifie',
+    'in progress': 'filme',
+    'complete': 'publie'
+  };
+
+  let episodes = [];
+  let currentFilter = 'all';
+
+  // ── SYNC STATUS ─────────────────────────────────────────
+  function setSyncStatus(state) {
+    const dot = document.getElementById('sync-dot');
+    const label = document.getElementById('sync-label');
+    dot.className = 'sync-dot' + (state === 'syncing' ? ' syncing' : state === 'error' ? ' error' : '');
+    label.textContent = state === 'syncing' ? 'Sync...' : state === 'error' ? 'Erreur' : 'ClickUp ✓';
+  }
+
+  // ── TOAST ───────────────────────────────────────────────
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    setTimeout(() => t.className = 'toast', 3000);
+  }
+
+  // ── CLICKUP API ─────────────────────────────────────────
+  async function cuFetch(path, options = {}) {
+    const res = await fetch(BASE_URL + path, {
+      ...options,
+      headers: {
+        'Authorization': API_KEY,
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      }
+    });
+    if (!res.ok) throw new Error(`ClickUp error: ${res.status}`);
+    return res.json();
+  }
+
+  // Parse description JSON block
+  function parseDesc(desc) {
+    try {
+      const match = desc && desc.match(/<!--AQM:(.*?)-->/s);
+      return match ? JSON.parse(match[1]) : {};
+    } catch { return {}; }
+  }
+
+  function buildDesc(data, notes) {
+    const json = JSON.stringify(data);
+    return (notes ? notes + '\n\n' : '') + `<!--AQM:${json}-->`;
+  }
+
+  function taskToEpisode(task) {
+    const meta = parseDesc(task.description);
+    const statusRaw = (task.status?.status || '').toLowerCase();
+    const status = STATUS_REVERSE[statusRaw] || 'planifie';
+    return {
+      id:           task.id,
+      titre:        task.name || '',
+      verset:       meta.verset || '',
+      presentateur: meta.presentateur || '',
+      tournage:     meta.tournage || '',
+      publication:  meta.publication || (task.due_date ? new Date(parseInt(task.due_date)).toISOString().split('T')[0] : ''),
+      status,
+      notes:        meta.notes || ''
+    };
+  }
+
+  // ── LOAD ────────────────────────────────────────────────
+  async function loadEpisodes() {
+    setSyncStatus('syncing');
+    try {
+      const data = await cuFetch(`/list/${LIST_ID}/task?archived=false`);
+      episodes = (data.tasks || []).map(taskToEpisode);
+      setSyncStatus('ok');
+      render();
+      updateStats();
+    } catch (e) {
+      setSyncStatus('error');
+      showToast('Impossible de charger depuis ClickUp', true);
+      document.getElementById('episodes-list').innerHTML =
+        `<div class="empty-state"><div class="icon">⚠️</div><h3>Erreur de connexion</h3><p>${e.message}</p></div>`;
+    }
+  }
+
+  // ── CREATE ───────────────────────────────────────────────
+  async function addEpisode() {
+    const titre = document.getElementById('new-titre').value.trim();
+    if (!titre) { showToast('Le titre est obligatoire', true); return; }
+
+    const btn = document.getElementById('btn-confirm');
+    btn.disabled = true;
+    btn.textContent = 'Ajout...';
+    setSyncStatus('syncing');
+
+    const meta = {
+      verset:       document.getElementById('new-verset').value.trim(),
+      presentateur: document.getElementById('new-presentateur').value.trim(),
+      tournage:     document.getElementById('new-tournage').value,
+      publication:  document.getElementById('new-publication').value,
+      notes:        document.getElementById('new-notes').value.trim()
+    };
+
+    const statusLabel = STATUS_MAP[document.getElementById('new-status').value] || 'Planifié';
+    const pubDate = meta.publication ? new Date(meta.publication).getTime() : undefined;
+
+    try {
+      const task = await cuFetch(`/list/${LIST_ID}/task`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: titre,
+          description: buildDesc(meta, meta.notes),
+          status: statusLabel,
+          ...(pubDate ? { due_date: pubDate } : {})
+        })
+      });
+
+      episodes.push(taskToEpisode(task));
+      setSyncStatus('ok');
+      showToast('Épisode ajouté dans ClickUp ✓');
+      closeModal();
+      render();
+      updateStats();
+    } catch (e) {
+      setSyncStatus('error');
+      showToast('Erreur lors de l\'ajout: ' + e.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Ajouter';
+    }
+  }
+
+  // ── UPDATE ───────────────────────────────────────────────
+  async function saveCard(id) {
+    const ep = episodes.find(e => e.id === id);
+    if (!ep) return;
+
+    setSyncStatus('syncing');
+    const meta = { verset: ep.verset, presentateur: ep.presentateur, tournage: ep.tournage, publication: ep.publication, notes: ep.notes };
+    const statusLabel = STATUS_MAP[ep.status] || 'Planifié';
+    const pubDate = ep.publication ? new Date(ep.publication).getTime() : undefined;
+
+    try {
+      await cuFetch(`/task/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: ep.titre,
+          description: buildDesc(meta, ep.notes),
+          status: statusLabel,
+          ...(pubDate ? { due_date: pubDate } : {})
+        })
+      });
+      setSyncStatus('ok');
+      showToast('Sauvegardé dans ClickUp ✓');
+      render();
+    } catch (e) {
+      setSyncStatus('error');
+      showToast('Erreur de sauvegarde', true);
+    }
+  }
+
+  // ── DELETE ───────────────────────────────────────────────
+  async function deleteEpisode(id) {
+    if (!confirm('Supprimer cet épisode de ClickUp ?')) return;
+    setSyncStatus('syncing');
+    try {
+      await cuFetch(`/task/${id}`, { method: 'DELETE' });
+      episodes = episodes.filter(e => e.id !== id);
+      setSyncStatus('ok');
+      showToast('Épisode supprimé');
+      render();
+      updateStats();
+    } catch (e) {
+      setSyncStatus('error');
+      showToast('Erreur lors de la suppression', true);
+    }
+  }
+
+  // ── UI ───────────────────────────────────────────────────
+  function updateField(id, field, value) {
+    const ep = episodes.find(e => e.id === id);
+    if (ep) ep[field] = value;
+  }
+
+  function updateStats() {
+    ['planifie','filme','edite','publie'].forEach(s => {
+      document.getElementById('count-' + s).textContent = episodes.filter(e => e.status === s).length;
+    });
+  }
+
+  function formatDate(d) {
+    if (!d) return '—';
+    const [y, m, day] = d.split('-');
+    return `${day}/${m}/${y}`;
+  }
+
+  function render() {
+    const list = document.getElementById('episodes-list');
+    const filtered = currentFilter === 'all' ? episodes : episodes.filter(e => e.status === currentFilter);
+
+    if (filtered.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="icon">🎬</div><h3>Aucun épisode</h3><p>Cliquez sur "+ Ajouter épisode" pour commencer.</p></div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map((ep, idx) => `
+      <div class="episode-card" id="card-${ep.id}">
+        <div class="card-header" onclick="toggleCard('${ep.id}')">
+          <span class="ep-number">#${String(idx + 1).padStart(2, '0')}</span>
+          <div class="ep-info">
+            <div class="ep-title">${ep.titre || 'Sans titre'}</div>
+            <div class="ep-verset">${ep.verset || ''}</div>
+          </div>
+          <div class="ep-dates">
+            ${ep.tournage ? `<span class="date-chip tournage">🎥 ${formatDate(ep.tournage)}</span>` : ''}
+            ${ep.publication ? `<span class="date-chip publication">📅 ${formatDate(ep.publication)}</span>` : ''}
+          </div>
+          <span class="status-badge status-${ep.status}">${STATUS_MAP[ep.status]}</span>
+          <span class="expand-icon">▾</span>
+        </div>
+        <div class="card-details">
+          <div class="details-grid">
+            <div class="detail-field">
+              <label>Titre</label>
+              <input type="text" value="${ep.titre || ''}" onchange="updateField('${ep.id}', 'titre', this.value)">
+            </div>
+            <div class="detail-field">
+              <label>Présentateur</label>
+              <input type="text" value="${ep.presentateur || ''}" onchange="updateField('${ep.id}', 'presentateur', this.value)">
+            </div>
+            <div class="detail-field full">
+              <label>Verset de base</label>
+              <input type="text" value="${ep.verset || ''}" onchange="updateField('${ep.id}', 'verset', this.value)">
+            </div>
+            <div class="detail-field">
+              <label>Date de tournage</label>
+              <input type="date" value="${ep.tournage || ''}" onchange="updateField('${ep.id}', 'tournage', this.value)">
+            </div>
+            <div class="detail-field">
+              <label>Date de publication</label>
+              <input type="date" value="${ep.publication || ''}" onchange="updateField('${ep.id}', 'publication', this.value)">
+            </div>
+            <div class="detail-field full">
+              <label>Statut</label>
+              <select onchange="updateField('${ep.id}', 'status', this.value)">
+                <option value="planifie" ${ep.status==='planifie'?'selected':''}>Planifié</option>
+                <option value="filme" ${ep.status==='filme'?'selected':''}>Filmé</option>
+                <option value="edite" ${ep.status==='edite'?'selected':''}>Édité</option>
+                <option value="publie" ${ep.status==='publie'?'selected':''}>Publié</option>
+              </select>
+            </div>
+            <div class="detail-field full">
+              <label>Notes</label>
+              <textarea onchange="updateField('${ep.id}', 'notes', this.value)">${ep.notes || ''}</textarea>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="btn-delete" onclick="deleteEpisode('${ep.id}')">Supprimer</button>
+            <button class="btn-save" onclick="saveCard('${ep.id}')">💾 Sauvegarder</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    updateStats();
+  }
+
+  function toggleCard(id) {
+    document.getElementById('card-' + id).classList.toggle('expanded');
+  }
+
+  function filterEpisodes(filter, btn) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  }
+
+  function openModal() {
+    document.getElementById('modal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+    ['titre','verset','presentateur','notes'].forEach(f => document.getElementById('new-'+f).value = '');
+    ['tournage','publication'].forEach(f => document.getElementById('new-'+f).value = '');
+    document.getElementById('new-status').value = 'planifie';
+  }
+
+  // ── INIT ─────────────────────────────────────────────────
+  loadEpisodes();
+  // Auto-refresh every 60 seconds
+  setInterval(loadEpisodes, 60000);
+</script>
+</body>
+</html>
