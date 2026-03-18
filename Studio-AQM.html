@@ -765,6 +765,13 @@ function saveRes(){
   if(!nom || !emRows.length || !date || !heure){ toast('Champs obligatoires manquants', 'err'); return; }
   if(!editingId && (!pin || pin.length < 4)){ toast('Code personnel requis (min. 4 chiffres)', 'err'); return; }
 
+  // Bloquer les dates passées aussi à la sauvegarde
+  if(!editingId && !isAdmin){
+    var todayCheck = new Date(); todayCheck.setHours(0,0,0,0);
+    var selectedCheck = new Date(date+'T00:00:00');
+    if(selectedCheck < todayCheck){ toast('Impossible de reserver une date passee', 'err'); return; }
+  }
+
   var dur = getDur();
   var emSummary = emRows.map(function(x){ return x.em; }); // tableau pour Airtable Multiple select
   var totalEp   = emRows.reduce(function(s,x){ return s+x.ep; }, 0);
