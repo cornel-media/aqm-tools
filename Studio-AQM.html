@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Studio AQM — Réservation</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Outfit:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d1117; --bg2:#161b22; --bg3:#21262d; --border:#30363d;
+    --text:#e6edf3; --muted:#8b949e;
+    --gold:#d4a017; --gold-l:#f0c040; --gold-dim:#3d2e0a;
+    --green:#2ea043; --green-l:#3fb950; --green-dim:#0d2818;
+    --red:#da3633; --red-dim:#3d0c0b;
+    --blue:#1f6feb; --blue-l:#388bfd; --blue-dim:#0c2444;
+    --shadow:0 4px 24px rgba(0,0,0,0.4);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+  /* HEADER */
+  header{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+  .logo{font-family:'Playfair Display',serif;font-size:18px;display:flex;align-items:center;gap:10px;}
+  .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);animation:blink 2s infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+  .logo span{color:var(--gold);}
+  .header-right{display:flex;align-items:center;gap:12px;}
+  .view-tabs{display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+  .view-tab{padding:6px 16px;font-size:13px;font-family:'Outfit',sans-serif;font-weight:500;border:none;background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s;}
+  .view-tab:hover{color:var(--text);}
+  .view-tab.active{background:var(--gold);color:#000;}
+  .btn-new{padding:10px 22px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:'Outfit',sans-serif;cursor:pointer;transition:background 0.15s;}
+  .btn-new:hover{background:var(--green-l);}
+  .admin-badge{background:var(--bg3);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:12px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.15s;}
+  .admin-badge:hover{border-color:var(--gold);color:var(--gold);}
+  .admin-badge.active-admin{background:var(--gold-dim);color:var(--gold-l);border-color:var(--gold);}
+
+  /* HERO */
+  .hero{background:linear-gradient(135deg,var(--bg2) 0%,#1a1f2e 100%);border-bottom:1px solid var(--border);padding:28px 32px;display:flex;align-items:center;gap:32px;}
+  .hero-title{font-family:'Playfair Display',serif;font-size:26px;margin-bottom:4px;}
+  .hero-title span{color:var(--gold);}
+  .hero-sub{font-size:13px;color:var(--muted);}
+  .hero-stats{display:none;gap:32px;margin-left:auto;}
+  .hero-stat{text-align:center;}
+  .hero-stat-num{font-family:'DM Mono',monospace;font-size:24px;color:var(--gold);}
+  .hero-stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+
+  /* LEGEND */
+  .legend{padding:10px 32px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;gap:20px;align-items:center;flex-wrap:wrap;}
+  .legend-label{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;margin-right:4px;}
+  .legend-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);}
+  .legend-dot{width:8px;height:8px;border-radius:50%;}
+
+  /* INFO BANNER */
+  .info-banner{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 32px;}
+  .info-banner-inner{max-width:1100px;margin:0 auto;padding:16px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+  .info-card{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;}
+  .info-card-icon{font-size:20px;flex-shrink:0;margin-top:1px;}
+  .info-card-title{font-size:11px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px;}
+  .info-card-body{font-size:13px;color:var(--text);line-height:1.6;}
+  .info-card-body a{color:var(--gold-l);text-decoration:none;}
+  .info-card-body a:hover{text-decoration:underline;}
+  .hours-grid{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:12px;}
+  .hours-day{color:var(--muted);}
+  .hours-time{color:var(--text);font-family:'DM Mono',monospace;}
+
+  /* MAIN */
+  .main{max-width:1100px;margin:0 auto;padding:24px;}
+
+  /* CALENDAR */
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .cal-nav-title{font-family:'Playfair Display',serif;font-size:20px;}
+  .cal-nav-btns{display:flex;gap:8px;}
+  .cal-nav-btn{padding:6px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;cursor:pointer;transition:all 0.15s;font-family:'Outfit',sans-serif;}
+  .cal-nav-btn:hover{border-color:var(--gold);color:var(--gold);}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+  .cal-day-header{text-align:center;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);text-transform:uppercase;padding:8px 4px;}
+  .cal-day{min-height:100px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px;transition:border-color 0.15s;}
+  .cal-day.empty{background:transparent;border-color:transparent;}
+  .cal-day.unavailable{opacity:0.3;}
+  .cal-day.today{border-color:var(--gold);}
+  .cal-day.available:hover{border-color:var(--gold);cursor:pointer;}
+  .cal-day-num{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);margin-bottom:5px;}
+  .cal-day.today .cal-day-num{color:var(--gold);font-weight:600;}
+  .cal-slot{font-size:10px;font-weight:600;padding:2px 5px;border-radius:4px;margin-bottom:2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cal-slot:hover{opacity:0.75;}
+  .cal-slot.InspirAction{background:var(--blue-dim);color:var(--blue-l);border-left:2px solid var(--blue-l);}
+  .cal-slot.Sermons{background:var(--gold-dim);color:var(--gold-l);border-left:2px solid var(--gold-l);}
+  .cal-slot.Empreints{background:var(--green-dim);color:var(--green-l);border-left:2px solid var(--green-l);}
+  .cal-slot.Publicite{background:#2a1a3a;color:#c084fc;border-left:2px solid #c084fc;}
+  .cal-slot.Rapports{background:#2a1a20;color:#fb923c;border-left:2px solid #fb923c;}
+  .cal-slot.other{background:var(--bg3);color:var(--muted);border-left:2px solid var(--muted);}
+  .unavail-label{font-size:10px;color:var(--muted);text-align:center;margin-top:6px;}
+
+  /* LIST */
+  .list-table{width:100%;border-collapse:collapse;}
+  .list-table th{text-align:left;font-size:11px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:10px 16px;border-bottom:1px solid var(--border);}
+  .list-table td{padding:12px 16px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .list-table tr:hover td{background:var(--bg2);cursor:pointer;}
+  .em-badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;}
+  .em-badge.InspirAction{background:var(--blue-dim);color:var(--blue-l);}
+  .em-badge.Sermons{background:var(--gold-dim);color:var(--gold-l);}
+  .em-badge.Empreints{background:var(--green-dim);color:var(--green-l);}
+  .em-badge.Publicite{background:#2a1a3a;color:#c084fc;}
+  .em-badge.Rapports{background:#2a1a20;color:#fb923c;}
+  .em-badge.other{background:var(--bg3);color:var(--muted);}
+  .st-badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;}
+  .st-badge.Confirm\E9{background:var(--green-dim);color:var(--green-l);}
+  .st-badge.Annul\E9{background:var(--red-dim);color:#ff6b6b;}
+
+  /* EMISSIONS LIST */
+  .emissions-list{grid-column:1/-1;display:flex;flex-direction:column;gap:8px;}
+  .emission-row{display:grid;grid-template-columns:1fr 80px 28px;gap:8px;align-items:center;}
+  .emission-row select,.emission-row input{padding:9px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;}
+  .emission-row select:focus,.emission-row input:focus{outline:none;border-color:var(--gold);}
+  .emission-row input{text-align:center;}
+  .btn-remove-em{width:28px;height:28px;border-radius:6px;border:1px solid var(--red-dim);background:transparent;color:#ff6b6b;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .btn-remove-em:hover{background:var(--red-dim);}
+  .btn-add-em{grid-column:1/-1;padding:8px;border:1px dashed var(--border);border-radius:8px;background:transparent;color:var(--muted);font-size:13px;font-family:'Outfit',sans-serif;cursor:pointer;transition:all 0.15s;width:100%;}
+  .btn-add-em:hover{border-color:var(--gold);color:var(--gold);}
+
+  /* MODAL */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--bg2);border:1px solid var(--border);border-radius:16px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow);animation:slideUp 0.2s ease;}
+  @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .modal-header{padding:22px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .modal-header h2{font-family:'Playfair Display',serif;font-size:20px;}
+  .btn-close{width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--bg3);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .btn-close:hover{color:var(--text);}
+  .modal-body{padding:22px;}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field.full{grid-column:1/-1;}
+  .field label{font-size:11px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--muted);}
+  .field input,.field select,.field textarea{padding:9px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;transition:border-color 0.15s;}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--gold);}
+  .field select option{background:var(--bg3);}
+  .field textarea{resize:vertical;min-height:60px;}
+  .info-box{grid-column:1/-1;padding:12px;border-radius:8px;font-size:13px;display:none;}
+  .info-box.gold{background:var(--gold-dim);border:1px solid var(--gold);color:var(--gold-l);}
+  .info-box.blue{background:var(--blue-dim);border:1px solid var(--blue);color:var(--blue-l);}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+  .btn-cancel-form{padding:9px 20px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:13px;font-family:'Outfit',sans-serif;cursor:pointer;}
+  .btn-cancel-form:hover{color:var(--text);}
+  .btn-save{padding:9px 24px;border-radius:8px;border:none;background:var(--gold);color:#000;font-size:13px;font-weight:600;font-family:'Outfit',sans-serif;cursor:pointer;}
+  .btn-save:hover{background:var(--gold-l);}
+  .btn-save:disabled{opacity:0.4;cursor:not-allowed;}
+
+  /* PANEL */
+  .panel-overlay{position:fixed;inset:0;z-index:150;display:none;}
+  .panel-overlay.open{display:block;}
+  .panel-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:150;}
+  .panel{position:fixed;top:0;right:0;bottom:0;width:400px;background:var(--bg2);border-left:1px solid var(--border);box-shadow:-8px 0 40px rgba(0,0,0,0.4);overflow-y:auto;z-index:151;animation:slideIn 0.25s ease;}
+  @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+  .panel-header{padding:22px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);}
+  .panel-close{position:absolute;top:18px;right:18px;width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:var(--bg3);color:var(--muted);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .panel-body{padding:20px 24px;}
+  .panel-field{display:grid;grid-template-columns:110px 1fr;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;}
+  .panel-field:last-child{border-bottom:none;}
+  .pf-label{color:var(--muted);}
+  .pf-value{color:var(--text);}
+  .panel-actions{display:flex;gap:8px;padding:16px 24px;border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--bg2);}
+  .btn-ep{flex:1;padding:10px;background:var(--gold);color:#000;border:none;border-radius:8px;font-size:13px;font-weight:600;font-family:'Outfit',sans-serif;cursor:pointer;}
+  .btn-ep:hover{background:var(--gold-l);}
+  .btn-ann{padding:10px 14px;background:transparent;color:#ff6b6b;border:1px solid var(--red-dim);border-radius:8px;font-size:13px;font-family:'Outfit',sans-serif;cursor:pointer;}
+  .btn-ann:hover{background:var(--red-dim);}
+
+  /* EMPTY / LOADING */
+  .empty{text-align:center;padding:80px 20px;color:var(--muted);}
+  .empty-icon{font-size:48px;margin-bottom:16px;}
+  .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:12px 24px;border-radius:10px;font-size:13px;font-weight:500;z-index:400;transition:transform 0.3s ease;box-shadow:var(--shadow);pointer-events:none;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+  .toast.ok{border-color:var(--green);color:var(--green-l);}
+  .toast.err{border-color:var(--red);color:#ff6b6b;}
+
+  /* STATUT BADGES */
+  .st-badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;}
+
+  @media(max-width:768px){
+    header{padding:0 16px;}
+    .hero{padding:20px 16px;}
+    .legend{padding:10px 16px;}
+    .info-banner{padding:0 16px;}
+    .info-banner-inner{grid-template-columns:1fr;}
+    .main{padding:16px;}
+    .panel{width:100%;}
+    .form-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="logo-dot"></div>Studio <span>AQM</span></div>
+  <div class="header-right">
+    <div class="view-tabs">
+      <button class="view-tab active" id="vtab-cal" onclick="setView('cal')">📅 Calendrier</button>
+      <button class="view-tab" id="vtab-list" onclick="setView('list')">☰ Liste</button>
+    </div>
+    <button class="btn-new" onclick="openModal()">+ Réserver le studio</button>
+    <span class="admin-badge" id="admin-badge" onclick="toggleAdmin()">Admin</span>
+  </div>
+</header>
+
+<div class="hero">
+  <div>
+    <div class="hero-title">Studio <span>Adventiste Québec</span></div>
+    <div class="hero-sub" id="hero-sub">Réservez votre créneau au Studio Adventiste Québec</div>
+  </div>
+  <div class="hero-stats" id="hero-stats">
+    <div class="hero-stat"><div class="hero-stat-num" id="s-week">—</div><div class="hero-stat-label">Cette semaine</div></div>
+    <div class="hero-stat"><div class="hero-stat-num" id="s-month">—</div><div class="hero-stat-label">Ce mois</div></div>
+    <div class="hero-stat"><div class="hero-stat-num" id="s-total">—</div><div class="hero-stat-label">Total</div></div>
+  </div>
+</div>
+
+<div class="legend">
+  <span class="legend-label">Emissions :</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#388bfd"></span>InspirAction (15 min)</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#f0c040"></span>Sermons (45 min)</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#3fb950"></span>Empreints (60 min)</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#c084fc"></span>Publicite (15 min)</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#fb923c"></span>Rapports departements (30 min)</span>
+</div>
+
+<div class="info-banner">
+  <div class="info-banner-inner">
+    <div class="info-card">
+      <div class="info-card-icon">📍</div>
+      <div>
+        <div class="info-card-title">Adresse</div>
+        <div class="info-card-body">
+          4505, boulevard Rosemont<br>
+          Montreal, QC<br>
+          <a href="https://maps.google.com/?q=4505+boulevard+Rosemont+Montreal+QC" target="_blank">Voir sur Google Maps</a>
+        </div>
+      </div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-icon">🕐</div>
+      <div>
+        <div class="info-card-title">Heures d'ouverture</div>
+        <div class="info-card-body">
+          <div class="hours-grid">
+            <span class="hours-day">Lundi</span><span class="hours-time">9h00 - 17h00</span>
+            <span class="hours-day">Mardi</span><span class="hours-time">9h00 - 17h00</span>
+            <span class="hours-day">Mercredi</span><span class="hours-time">11h00 - 17h00</span>
+            <span class="hours-day">Jeudi</span><span class="hours-time">9h00 - 17h00</span>
+            <span class="hours-day">Ven / Dim</span><span class="hours-time">Sur demande</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-icon">✉️</div>
+      <div>
+        <div class="info-card-title">Contact</div>
+        <div class="info-card-body">
+          Pour toute question ou reservation hors horaire :<br><br>
+          <strong>Cornel Serban</strong><br>
+          <a href="mailto:communication@sdaqc.org">communication@sdaqc.org</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="main" id="main">
+  <div class="empty"><div class="spinner"></div><div>Chargement...</div></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Nouvelle reservation</h2>
+      <button class="btn-close" onclick="closeModal()">x</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>Nom complet *</label><input type="text" id="f-nom" placeholder="Jean Dupont"></div>
+        <div class="field"><label>Email</label><input type="email" id="f-email" placeholder="jean@email.com"></div>
+        <div class="field full">
+          <label>Emissions *</label>
+          <div class="emissions-list" id="emissions-list"></div>
+          <button class="btn-add-em" onclick="addEmissionRow()">+ Ajouter une emission</button>
+        </div>
+        <div class="info-box gold" id="dur-info"></div>
+        <div class="field"><label>Date *</label><input type="date" id="f-date" onchange="onDateChange()"></div>
+        <div class="field">
+          <label>Heure de debut *</label>
+          <select id="f-heure" onchange="showEndTime()"><option value="">Choisir une date dabord</option></select>
+        </div>
+        <div class="info-box blue" id="contact-info">
+          Pour reserver ce jour, contactez : <strong>communication@sdaqc.org</strong>
+        </div>
+        <div class="field full"><label>Notes</label><textarea id="f-notes" placeholder="Informations supplementaires..."></textarea></div>
+        <div class="field full" id="pin-wrap">
+          <label>Code personnel * (4-6 chiffres - gardez-le pour modifier)</label>
+          <input type="password" id="f-pin" placeholder="ex: 1234" maxlength="6" inputmode="numeric">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel-form" onclick="closeModal()">Annuler</button>
+        <button class="btn-save" id="btn-save" onclick="saveRes()">Confirmer la reservation</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL -->
+<div class="panel-overlay" id="panel">
+  <div class="panel-backdrop" onclick="closePanel()"></div>
+  <div class="panel">
+    <div class="panel-header">
+      <div style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:6px" id="p-date"></div>
+      <div style="font-family:'Playfair Display',serif;font-size:20px;margin-bottom:8px" id="p-nom"></div>
+      <div id="p-badges" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      <button class="panel-close" onclick="closePanel()">x</button>
+    </div>
+    <div class="panel-body" id="panel-body"></div>
+    <div class="panel-actions">
+      <button class="btn-ep" onclick="editCurrent()">Modifier</button>
+      <button class="btn-ann" onclick="cancelCurrent()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// CONFIG AIRTABLE
+var TOKEN   = 'patzsYUL3iN27fJOQ.f5cb589a35cfdb1e03635d8fda1b5231f1cc55e27405cf14f06c16bca175203d';
+var BASE_ID = 'appjkrrnXHiHTjvmI';
+var TABLE   = 'tblPb4MZjD62QQZ1c';
+var API     = 'https://api.airtable.com/v0/' + BASE_ID + '/' + TABLE;
+var HDR     = { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' };
+
+// CONSTANTES
+var EMISSIONS = { 'InspirAction':15, 'Sermons':45, 'Empreints':60, 'Publicite':15, 'Rapports departements':30 };
+var HOURS     = { 1:{o:9,c:17}, 2:{o:9,c:17}, 3:{o:11,c:17}, 4:{o:9,c:17} };
+var CONTACT_DAYS = [5, 0];
+var ADMIN_PWD    = 'adminacces';
+
+// ETAT
+var reservations = [];
+var currentView  = 'cal';
+var calMonth     = new Date();
+var currentId    = null;
+var editingId    = null;
+var isAdmin      = false;
+
+// UTILS
+function pad(n){ return String(n).padStart(2,'0'); }
+function fmtDate(d){ if(!d)return'--'; var p=d.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+function t2m(t){ var p=t.split(':').map(Number); return p[0]*60+p[1]; }
+function m2t(m){ return pad(Math.floor(m/60))+':'+pad(m%60); }
+function dow(ds){ return new Date(ds+'T12:00:00').getDay(); }
+function emClass(em){
+  // Accepte tableau ou string (Multiple select Airtable retourne un tableau)
+  if(Array.isArray(em)) em = em[0] || '';
+  if(!em) return 'other';
+  if(em.indexOf('Publicite') !== -1 || em.indexOf('Publicité') !== -1) return 'Publicite';
+  if(em.indexOf('Rapports') !== -1) return 'Rapports';
+  if(EMISSIONS[em]) return em.replace(/\s+/g,'');
+  return 'other';
+}
+
+function toast(msg, type){
+  type = type || '';
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(function(){ t.className = 'toast'; }, 3000);
+}
+
+// AIRTABLE
+function at(url, opts){
+  opts = opts || {};
+  var headers = {};
+  Object.keys(HDR).forEach(function(k){ headers[k] = HDR[k]; });
+  if(opts.headers) Object.keys(opts.headers).forEach(function(k){ headers[k] = opts.headers[k]; });
+  opts.headers = headers;
+  return fetch(url, opts).then(function(r){
+    if(!r.ok) return r.text().then(function(b){ throw new Error('Airtable ' + r.status + ': ' + b); });
+    return r.json();
+  });
+}
+
+// AUTH
+function toggleAdmin(){
+  if(isAdmin){
+    isAdmin = false; updateAdminUI(); toast('Mode invite'); render(); return;
+  }
+  var pwd = prompt('Mot de passe admin :');
+  if(pwd === ADMIN_PWD){ isAdmin = true; updateAdminUI(); toast('Mode admin active', 'ok'); render(); }
+  else if(pwd !== null){ toast('Mot de passe incorrect', 'err'); }
+}
+
+function updateAdminUI(){
+  var b = document.getElementById('admin-badge');
+  if(b){
+    b.textContent = isAdmin ? 'Admin (actif)' : 'Admin';
+    if(isAdmin){ b.classList.add('active-admin'); }
+    else { b.classList.remove('active-admin'); }
+  }
+  var stats = document.getElementById('hero-stats');
+  if(stats) stats.style.display = isAdmin ? 'flex' : 'none';
+  document.getElementById('hero-sub').textContent = isAdmin
+    ? 'Mode administrateur - Tous les jours disponibles'
+    : 'Reservez votre creneau au Studio Adventiste Quebec';
+}
+
+// CHARGEMENT
+function load(){
+  var all = [];
+  function fetchPage(offset){
+    var url = API + '?pageSize=100' + (offset ? '&offset=' + offset : '');
+    return at(url).then(function(d){
+      all = all.concat(d.records);
+      if(d.offset) return fetchPage(d.offset);
+    });
+  }
+  fetchPage(null).then(function(){
+    reservations = all.map(function(r){ return Object.assign({id:r.id}, r.fields); });
+    reservations.sort(function(a,b){ return (a.Date||'') > (b.Date||'') ? 1 : -1; });
+    updateStats(); render();
+  }).catch(function(e){
+    document.getElementById('main').innerHTML = '<div class="empty"><div class="empty-icon">!</div><p>' + e.message + '</p></div>';
+  });
+}
+
+// STATS
+function updateStats(){
+  var today = new Date();
+  var ws = new Date(today); ws.setDate(today.getDate() - today.getDay() + 1);
+  var we = new Date(ws); we.setDate(ws.getDate() + 6);
+  var ms = today.toISOString().slice(0,7);
+  var act = reservations.filter(function(r){ return r.Statut !== 'Annule' && r.Statut !== 'Annulé'; });
+  document.getElementById('s-total').textContent = act.length;
+  document.getElementById('s-month').textContent = act.filter(function(r){ return r.Date && r.Date.startsWith(ms); }).length;
+  document.getElementById('s-week').textContent = act.filter(function(r){
+    if(!r.Date) return false;
+    var d = new Date(r.Date+'T12:00:00'); return d>=ws && d<=we;
+  }).length;
+}
+
+// VUES
+function setView(v){
+  currentView = v;
+  document.getElementById('vtab-cal').classList.toggle('active', v==='cal');
+  document.getElementById('vtab-list').classList.toggle('active', v==='list');
+  render();
+}
+function render(){ if(currentView==='cal') renderCal(); else renderList(); }
+
+function renderCal(){
+  var main = document.getElementById('main');
+  var y = calMonth.getFullYear(), mo = calMonth.getMonth();
+  var months = ['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre'];
+  var days   = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  var first  = new Date(y,mo,1), last = new Date(y,mo+1,0);
+  var sd = first.getDay(); sd = sd===0 ? 6 : sd-1;
+  var today = new Date();
+
+  var rbd = {};
+  reservations.forEach(function(r){
+    if(!r.Date) return;
+    var d = new Date(r.Date+'T12:00:00');
+    if(d.getFullYear()===y && d.getMonth()===mo){
+      var k = d.getDate(); if(!rbd[k]) rbd[k]=[]; rbd[k].push(r);
+    }
+  });
+
+  var cells = [];
+  for(var i=0;i<sd;i++) cells.push('<div class="cal-day empty"></div>');
+
+  for(var d=1; d<=last.getDate(); d++){
+    var dw       = new Date(y,mo,d).getDay();
+    var isToday  = today.getFullYear()===y && today.getMonth()===mo && today.getDate()===d;
+    var isAvail  = !!HOURS[dw];
+    var isContact= CONTACT_DAYS.indexOf(dw) !== -1;
+    var dayRes   = (rbd[d]||[]).filter(function(r){ return r.Statut !== 'Annule' && r.Statut !== 'Annulé'; });
+    var ds       = y+'-'+pad(mo+1)+'-'+pad(d);
+
+    var cls = 'cal-day';
+    if(!isAvail && !isContact) cls += ' unavailable';
+    if(isAvail) cls += ' available';
+    if(isToday) cls += ' today';
+
+    var oc = '';
+    if(isAvail || (isContact && isAdmin)) oc = 'onclick="quickBook(\'' + ds + '\')"';
+    else if(isContact) oc = 'onclick="showContactMsg()"';
+
+    var slots = dayRes.map(function(r){
+      var ec = emClass(r.Emission || r['Émission'] || '');
+      var label = (r['Heure debut'] || r['Heure début'] || '') + ' ' + (r.Emission || r['Émission'] || '?');
+      return '<div class="cal-slot ' + ec + '" onclick="event.stopPropagation();openPanel(\'' + r.id + '\')">' + label + '</div>';
+    }).join('');
+
+    cells.push('<div class="' + cls + '" ' + oc + '><div class="cal-day-num">' + d + '</div>' + slots + (isContact ? '<div class="unavail-label">Sur demande</div>' : '') + '</div>');
+  }
+
+  main.innerHTML =
+    '<div class="cal-nav">' +
+      '<div class="cal-nav-title">' + months[mo] + ' ' + y + '</div>' +
+      '<div class="cal-nav-btns">' +
+        '<button class="cal-nav-btn" onclick="nav(-1)">Precedent</button>' +
+        '<button class="cal-nav-btn" onclick="nav(0)">Aujourd\'hui</button>' +
+        '<button class="cal-nav-btn" onclick="nav(1)">Suivant</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="cal-grid">' +
+      days.map(function(d){ return '<div class="cal-day-header">'+d+'</div>'; }).join('') +
+      cells.join('') +
+    '</div>';
+}
+
+function nav(dir){ calMonth = dir===0 ? new Date() : new Date(calMonth.getFullYear(), calMonth.getMonth()+dir, 1); render(); }
+function quickBook(ds){ openModal(); setTimeout(function(){ document.getElementById('f-date').value=ds; onDateChange(); }, 100); }
+function showContactMsg(){ toast('Pour reserver ce jour : communication@sdaqc.org'); }
+
+function renderList(){
+  var main = document.getElementById('main');
+  var act = reservations.filter(function(r){ return r.Statut !== 'Annule' && r.Statut !== 'Annulé'; });
+  if(!act.length){ main.innerHTML = '<div class="empty"><div class="empty-icon">📅</div><p>Aucune reservation</p></div>'; return; }
+  var rows = act.map(function(r){
+    var emRaw = r.Emission || r['Émission'] || '--'; var em = Array.isArray(emRaw) ? emRaw.join(', ') : emRaw;
+    var ec = emClass(em);
+    var hd = r['Heure debut'] || r['Heure début'] || '--';
+    var hf = r['Heure fin'] || '--';
+    var ep = r['Nombre episodes'] || r["Nombre d'épisodes"] || '--';
+    var dur= r['Duree totale (min)'] || r['Durée totale (min)'] || '';
+    var st = r.Statut || '--';
+    return '<tr onclick="openPanel(\'' + r.id + '\')">' +
+      '<td>' + fmtDate(r.Date) + '</td>' +
+      '<td style="font-family:\'DM Mono\',monospace;font-size:12px">' + hd + ' - ' + hf + '</td>' +
+      '<td style="font-weight:600">' + (r.Nom||'--') + '</td>' +
+      '<td><span class="em-badge ' + ec + '">' + em + '</span></td>' +
+      '<td style="text-align:center">' + ep + '</td>' +
+      '<td style="font-family:\'DM Mono\',monospace;font-size:12px">' + (dur ? dur+'min' : '--') + '</td>' +
+      '<td><span class="st-badge">' + st + '</span></td>' +
+      '</tr>';
+  }).join('');
+  main.innerHTML = '<table class="list-table"><thead><tr><th>Date</th><th>Horaire</th><th>Nom</th><th>Emission</th><th>Episodes</th><th>Duree</th><th>Statut</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+// FORMULAIRE EMISSIONS
+function getEmissionRows(){
+  var rows = document.querySelectorAll('.emission-row');
+  var result = [];
+  rows.forEach(function(row){
+    var sel = row.querySelector('select');
+    var inp = row.querySelector('input');
+    if(sel && sel.value) result.push({ em: sel.value, ep: parseInt(inp ? inp.value : 1) || 1 });
+  });
+  return result;
+}
+
+function getDur(){
+  return getEmissionRows().reduce(function(sum, x){ return sum + (EMISSIONS[x.em]||0) * x.ep; }, 0);
+}
+
+function addEmissionRow(emVal, epVal){
+  emVal = emVal || '';
+  epVal = epVal || 1;
+  var list = document.getElementById('emissions-list');
+  var div = document.createElement('div');
+  div.className = 'emission-row';
+  div.innerHTML =
+    '<select onchange="calcDuration();updateSlots()">' +
+      '<option value="">-- Choisir --</option>' +
+      ['InspirAction','Sermons','Empreints','Publicite','Rapports departements'].map(function(e){
+        return '<option value="' + e + '"' + (emVal===e ? ' selected' : '') + '>' + e + '</option>';
+      }).join('') +
+    '</select>' +
+    '<input type="number" min="1" max="20" value="' + epVal + '" placeholder="Ep." onchange="calcDuration();updateSlots()">' +
+    '<button class="btn-remove-em" onclick="removeEmissionRow(this)">x</button>';
+  list.appendChild(div);
+  calcDuration();
+}
+
+function removeEmissionRow(btn){
+  btn.closest('.emission-row').remove();
+  calcDuration(); updateSlots();
+}
+
+function calcDuration(){
+  var dur = getDur();
+  var info = document.getElementById('dur-info');
+  var rows = getEmissionRows();
+  if(dur > 0 && rows.length > 0){
+    var h = Math.floor(dur/60), mn = dur%60;
+    var ds = h > 0 ? h+'h'+(mn > 0 ? pad(mn)+'min' : '') : mn+'min';
+    var detail = rows.map(function(x){ return x.ep+'x'+x.em+'('+(EMISSIONS[x.em]*x.ep)+'min)'; }).join(' + ');
+    info.style.display = 'block';
+    info.innerHTML = '<strong>' + detail + ' = ' + ds + ' total</strong>';
+  } else {
+    info.style.display = 'none';
+  }
+}
+
+function showEndTime(){
+  var h = document.getElementById('f-heure').value;
+  var dur = getDur();
+  var info = document.getElementById('dur-info');
+  if(h && dur > 0 && info.style.display !== 'none'){
+    var end = m2t(t2m(h) + dur);
+    info.innerHTML = info.innerHTML.replace(/ - Fin.*$/, '') + ' - Fin prevue : ' + end;
+  }
+}
+
+function onDateChange(){
+  var ds  = document.getElementById('f-date').value;
+  var ci  = document.getElementById('contact-info');
+  var hs  = document.getElementById('f-heure');
+  var btn = document.getElementById('btn-save');
+  if(!ds) return;
+  var dw = dow(ds);
+  if(CONTACT_DAYS.indexOf(dw) !== -1 && !isAdmin){
+    ci.style.display='block'; hs.innerHTML='<option>Contacter Cornel</option>'; btn.disabled=true; return;
+  }
+  ci.style.display='none'; btn.disabled=false;
+  if(!HOURS[dw] && !isAdmin){ hs.innerHTML='<option>Studio ferme ce jour</option>'; btn.disabled=true; return; }
+  updateSlots(ds);
+}
+
+function updateSlots(ds){
+  ds = ds || document.getElementById('f-date').value;
+  if(!ds) return;
+  var dw  = dow(ds);
+  var hrs = HOURS[dw] || {o:9, c:17};
+  var dur = getDur() || 15;
+  var hs  = document.getElementById('f-heure');
+  var btn = document.getElementById('btn-save');
+  var occ = reservations.filter(function(r){
+    return r.Date===ds && r.Statut!=='Annule' && r.Statut!=='Annulé' && r.id!==editingId;
+  }).map(function(r){
+    return { s: t2m(r['Heure debut']||r['Heure début']||'00:00'), e: t2m(r['Heure fin']||'00:00') };
+  });
+  var opts = [];
+  for(var mn=hrs.o*60; mn+dur<=hrs.c*60; mn+=15){
+    var end = mn + dur;
+    if(!occ.some(function(x){ return mn<x.e && end>x.s; })) opts.push(m2t(mn));
+  }
+  if(!opts.length){
+    hs.innerHTML = '<option>Aucun creneau disponible</option>'; btn.disabled = true;
+  } else {
+    hs.innerHTML = '<option value="">-- Choisir --</option>' + opts.map(function(o){ return '<option value="'+o+'">'+o+'</option>'; }).join('');
+    btn.disabled = false;
+  }
+}
+
+// MODAL
+function openModal(id){
+  id = id || null;
+  editingId = id;
+  document.getElementById('modal-title').textContent = id ? 'Modifier' : 'Nouvelle reservation';
+  document.getElementById('dur-info').style.display = 'none';
+  document.getElementById('contact-info').style.display = 'none';
+  document.getElementById('btn-save').disabled = false;
+  document.getElementById('pin-wrap').style.display = id ? 'none' : 'flex';
+  document.getElementById('emissions-list').innerHTML = '';
+
+  if(id){
+    var r = reservations.find(function(x){ return x.id===id; });
+    if(r){
+      document.getElementById('f-nom').value   = r.Nom || '';
+      document.getElementById('f-email').value = r.Email || '';
+      document.getElementById('f-date').value  = r.Date || '';
+      document.getElementById('f-notes').value = r.Notes || '';
+      var em = r.Emission || r['Émission'] || '';
+      var ep = r['Nombre episodes'] || r["Nombre d'épisodes"] || 1;
+      addEmissionRow(em, ep);
+      calcDuration(); onDateChange();
+      setTimeout(function(){
+        var hd = r['Heure debut'] || r['Heure début'] || '';
+        document.getElementById('f-heure').value = hd;
+      }, 250);
+    }
+  } else {
+    ['f-nom','f-email','f-notes','f-pin'].forEach(function(x){ document.getElementById(x).value=''; });
+    document.getElementById('f-date').value = '';
+    document.getElementById('f-heure').innerHTML = '<option value="">Choisir une date dabord</option>';
+    addEmissionRow();
+  }
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal(){ document.getElementById('modal').classList.remove('open'); editingId = null; }
+
+// SAUVEGARDE
+function saveRes(){
+  var nom   = document.getElementById('f-nom').value.trim();
+  var date  = document.getElementById('f-date').value;
+  var heure = document.getElementById('f-heure').value;
+  var pin   = document.getElementById('f-pin').value.trim();
+  var emRows = getEmissionRows();
+
+  if(!nom || !emRows.length || !date || !heure){ toast('Champs obligatoires manquants', 'err'); return; }
+  if(!editingId && (!pin || pin.length < 4)){ toast('Code personnel requis (min. 4 chiffres)', 'err'); return; }
+
+  var dur = getDur();
+  var emSummary = emRows.map(function(x){ return x.em; }); // tableau pour Airtable Multiple select
+  var totalEp   = emRows.reduce(function(s,x){ return s+x.ep; }, 0);
+
+  var fields = {
+    'Nom': nom,
+    'Email': document.getElementById('f-email').value.trim(),
+    'Émission': emSummary,
+    "Nombre d'épisodes": totalEp,
+    'Date': date,
+    'Heure début': heure,
+    'Heure fin': m2t(t2m(heure) + dur),
+    'Durée totale (min)': dur,
+    'Statut': 'Confirmé',
+    'Notes': document.getElementById('f-notes').value.trim()
+  };
+  if(!editingId) fields['Code personnel'] = pin;
+
+  var btn = document.getElementById('btn-save');
+  btn.disabled = true; btn.textContent = 'Enregistrement...';
+
+  var req;
+  if(editingId){
+    req = at(API + '/' + editingId, { method:'PATCH', body: JSON.stringify({fields:fields}) }).then(function(d){
+      var i = reservations.findIndex(function(r){ return r.id===editingId; });
+      if(i !== -1) reservations[i] = Object.assign({id:editingId}, d.fields);
+      toast('Mise a jour OK', 'ok');
+    });
+  } else {
+    req = at(API, { method:'POST', body: JSON.stringify({fields:fields}) }).then(function(d){
+      reservations.push(Object.assign({id:d.id}, d.fields));
+      reservations.sort(function(a,b){ return (a.Date||'')>(b.Date||'') ? 1:-1; });
+      toast('Reservation confirmee!', 'ok');
+    });
+  }
+  req.then(function(){ closeModal(); updateStats(); render(); })
+     .catch(function(e){ toast('Erreur : ' + e.message, 'err'); })
+     .finally(function(){ btn.disabled=false; btn.textContent='Confirmer la reservation'; });
+}
+
+// PANEL
+function openPanel(id){
+  var r = reservations.find(function(x){ return x.id===id; });
+  if(!r) return;
+  currentId = id;
+  var hd = r['Heure debut'] || r['Heure début'] || '';
+  var hf = r['Heure fin'] || '';
+  var emRaw = r.Emission || r['Émission'] || '--'; var em = Array.isArray(emRaw) ? emRaw.join(', ') : emRaw;
+  document.getElementById('p-date').textContent = fmtDate(r.Date) + ' - ' + hd + ' -> ' + hf;
+  document.getElementById('p-nom').textContent  = r.Nom || '--';
+  var ec = emClass(em);
+  document.getElementById('p-badges').innerHTML = '<span class="em-badge ' + ec + '">' + em + '</span> <span class="st-badge">' + (r.Statut||'--') + '</span>';
+  var ep  = r['Nombre episodes'] || r["Nombre d'épisodes"] || '--';
+  var dur = r['Duree totale (min)'] || r['Durée totale (min)'] || '';
+  document.getElementById('panel-body').innerHTML =
+    '<div class="panel-field"><span class="pf-label">Email</span><span class="pf-value">' + (r.Email||'--') + '</span></div>' +
+    '<div class="panel-field"><span class="pf-label">Emission</span><span class="pf-value">' + em + '</span></div>' +
+    '<div class="panel-field"><span class="pf-label">Episodes</span><span class="pf-value">' + ep + '</span></div>' +
+    '<div class="panel-field"><span class="pf-label">Duree</span><span class="pf-value">' + (dur ? dur+'min' : '--') + '</span></div>' +
+    '<div class="panel-field"><span class="pf-label">Date</span><span class="pf-value">' + fmtDate(r.Date) + '</span></div>' +
+    '<div class="panel-field"><span class="pf-label">Debut</span><span class="pf-value">' + hd + '</span></div>' +
+    '<div class="panel-field"><span class="pf-label">Fin</span><span class="pf-value">' + hf + '</span></div>' +
+    (r.Notes ? '<div class="panel-field"><span class="pf-label">Notes</span><span class="pf-value">' + r.Notes + '</span></div>' : '');
+  document.getElementById('panel').classList.add('open');
+}
+
+function closePanel(){ document.getElementById('panel').classList.remove('open'); currentId = null; }
+
+function editCurrent(){
+  var id = currentId;
+  if(isAdmin){ closePanel(); openModal(id); return; }
+  var r = reservations.find(function(x){ return x.id===id; });
+  var entered = prompt('Entrez votre code personnel pour modifier :');
+  if(entered === null) return;
+  if(entered === String(r['Code personnel']||'')){ closePanel(); openModal(id); }
+  else toast('Code incorrect', 'err');
+}
+
+function cancelCurrent(){
+  if(!currentId) return;
+  var id = currentId;
+  var r  = reservations.find(function(x){ return x.id===id; });
+  if(!isAdmin){
+    var entered = prompt('Entrez votre code personnel pour annuler :');
+    if(entered === null) return;
+    if(entered !== String(r['Code personnel']||'')){ toast('Code incorrect', 'err'); return; }
+  }
+  if(!confirm('Annuler la reservation de ' + r.Nom + ' ?')) return;
+  at(API + '/' + id, { method:'PATCH', body: JSON.stringify({fields:{Statut:'Annulé'}}) }).then(function(d){
+    var i = reservations.findIndex(function(x){ return x.id===id; });
+    if(i !== -1) reservations[i] = Object.assign({id:id}, d.fields);
+    closePanel(); updateStats(); render(); toast('Reservation annulee', 'ok');
+  }).catch(function(e){ toast('Erreur : ' + e.message, 'err'); });
+}
+
+// DEMARRAGE
+window.addEventListener('DOMContentLoaded', function(){ updateAdminUI(); load(); });
+</script>
+</body>
+</html>
