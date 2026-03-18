@@ -554,7 +554,7 @@ function renderList(){
     return '<tr onclick="openPanel(\'' + r.id + '\')">' +
       '<td>' + fmtDate(r.Date) + '</td>' +
       '<td style="font-family:\'DM Mono\',monospace;font-size:12px">' + hd + ' - ' + hf + '</td>' +
-      '<td style="font-weight:600">' + (r.Nom||'--') + '</td>' +
+      '<td style="font-weight:600">' + (isAdmin ? (r.Nom||'--') : '---') + '</td>' +
       '<td><span class="em-badge ' + ec + '">' + em + '</span></td>' +
       '<td style="text-align:center">' + ep + '</td>' +
       '<td style="font-family:\'DM Mono\',monospace;font-size:12px">' + (dur ? dur+'min' : '--') + '</td>' +
@@ -825,13 +825,15 @@ function openPanel(id){
   var hf = r['Heure fin'] || '';
   var emRaw = r.Emission || r['Émission'] || '--'; var em = Array.isArray(emRaw) ? emRaw.join(', ') : emRaw;
   document.getElementById('p-date').textContent = fmtDate(r.Date) + ' - ' + hd + ' -> ' + hf;
-  document.getElementById('p-nom').textContent  = r.Nom || '--';
+  // Nom visible seulement pour les admins
+  document.getElementById('p-nom').textContent  = isAdmin ? (r.Nom || '--') : 'Reservation confirmee';
   var ec = emClass(em);
   document.getElementById('p-badges').innerHTML = '<span class="em-badge ' + ec + '">' + em + '</span> <span class="st-badge">' + (r.Statut||'--') + '</span>';
   var ep  = r['Nombre episodes'] || r["Nombre d'épisodes"] || '--';
   var dur = r['Duree totale (min)'] || r['Durée totale (min)'] || '';
+  var emailField = isAdmin ? '<div class="panel-field"><span class="pf-label">Email</span><span class="pf-value">' + (r.Email||'--') + '</span></div>' : '';
   document.getElementById('panel-body').innerHTML =
-    '<div class="panel-field"><span class="pf-label">Email</span><span class="pf-value">' + (r.Email||'--') + '</span></div>' +
+    emailField +
     '<div class="panel-field"><span class="pf-label">Emission</span><span class="pf-value">' + em + '</span></div>' +
     '<div class="panel-field"><span class="pf-label">Episodes</span><span class="pf-value">' + ep + '</span></div>' +
     '<div class="panel-field"><span class="pf-label">Duree</span><span class="pf-value">' + (dur ? dur+'min' : '--') + '</span></div>' +
