@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Studio AQM — Réservation</title>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>emailjs.init("bwE4ypXTLUodnZ1Bl");</script>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Outfit:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -476,6 +478,15 @@ function renderCal(){
       var k = d.getDate(); if(!rbd[k]) rbd[k]=[]; rbd[k].push(r);
     }
   });
+  // Trier chaque jour par heure de début
+  Object.keys(rbd).forEach(function(k){
+    rbd[k].sort(function(a,b){
+      var ha = t2m(a['Heure debut']||a['Heure début']||'00:00');
+      var hb = t2m(b['Heure debut']||b['Heure début']||'00:00');
+      return ha - hb;
+    });
+  });
+  // (tri effectué ci-dessus)
 
   var cells = [];
   for(var i=0;i<sd;i++) cells.push('<div class="cal-day empty"></div>');
@@ -499,7 +510,10 @@ function renderCal(){
 
     var slots = dayRes.map(function(r){
       var ec = emClass(r.Emission || r['Émission'] || '');
-      var label = (r['Heure debut'] || r['Heure début'] || '') + ' ' + (r.Emission || r['Émission'] || '?');
+      var emLabel = Array.isArray(r['Émission']) ? r['Émission'].join(', ') : (r.Emission || r['Émission'] || '?');
+      var heure = r['Heure debut'] || r['Heure début'] || '';
+      // Nom visible seulement pour les admins
+      var label = heure + ' ' + emLabel + (isAdmin && r.Nom ? ' — ' + r.Nom : '');
       return '<div class="cal-slot ' + ec + '" onclick="event.stopPropagation();openPanel(\'' + r.id + '\')">' + label + '</div>';
     }).join('');
 
@@ -621,6 +635,16 @@ function onDateChange(){
   var hs  = document.getElementById('f-heure');
   var btn = document.getElementById('btn-save');
   if(!ds) return;
+
+  // Bloquer les dates passées
+  var today = new Date(); today.setHours(0,0,0,0);
+  var selected = new Date(ds+'T00:00:00');
+  if(selected < today && !isAdmin){
+    ci.style.display='none';
+    hs.innerHTML='<option>Date passee -- choisir une date future</option>';
+    btn.disabled=true; return;
+  }
+
   var dw = dow(ds);
   if(CONTACT_DAYS.indexOf(dw) !== -1 && !isAdmin){
     ci.style.display='block'; hs.innerHTML='<option>Contacter Cornel</option>'; btn.disabled=true; return;
@@ -643,9 +667,18 @@ function updateSlots(ds){
   }).map(function(r){
     return { s: t2m(r['Heure debut']||r['Heure début']||'00:00'), e: t2m(r['Heure fin']||'00:00') };
   });
+  // Si c'est aujourd'hui, bloquer les créneaux déjà passés
+  var nowMin = 0;
+  var todayStr = new Date().toISOString().split('T')[0];
+  if(ds === todayStr){
+    var now = new Date();
+    nowMin = now.getHours()*60 + now.getMinutes();
+  }
+
   var opts = [];
   for(var mn=hrs.o*60; mn+dur<=hrs.c*60; mn+=15){
     var end = mn + dur;
+    if(mn < nowMin && !isAdmin) continue; // bloquer les créneaux passés
     if(!occ.some(function(x){ return mn<x.e && end>x.s; })) opts.push(m2t(mn));
   }
   if(!opts.length){
@@ -694,6 +727,33 @@ function openModal(id){
 
 function closeModal(){ document.getElementById('modal').classList.remove('open'); editingId = null; }
 
+// EMAIL DE CONFIRMATION
+function sendConfirmationEmail(nom, email, emSummary, date, heure, heureFin, dur){
+  var params = {
+    to_name:    nom,
+    to_email:   email,
+    emission:   emSummary,
+    date:       fmtDate(date),
+    heure:      heure,
+    heure_fin:  heureFin,
+    duree:      dur + ' min',
+    studio:     'Studio AQM — 4505, boulevard Rosemont, Montreal'
+  };
+  // Email au réservateur
+  if(email){
+    emailjs.send('communication@sdaqc.org', 'template_mn6rnih', params).catch(function(e){
+      console.warn('Email réservateur non envoyé:', e);
+    });
+  }
+  // Copie à communication@sdaqc.org
+  emailjs.send('communication@sdaqc.org', 'template_mn6rnih', Object.assign({}, params, {
+    to_email: 'communication@sdaqc.org',
+    to_name:  'AQM'
+  })).catch(function(e){
+    console.warn('Email AQM non envoyé:', e);
+  });
+}
+
 // SAUVEGARDE
 function saveRes(){
   var nom   = document.getElementById('f-nom').value.trim();
@@ -738,6 +798,10 @@ function saveRes(){
       reservations.push(Object.assign({id:d.id}, d.fields));
       reservations.sort(function(a,b){ return (a.Date||'')>(b.Date||'') ? 1:-1; });
       toast('Reservation confirmee!', 'ok');
+      // Envoyer email de confirmation
+      sendConfirmationEmail(nom, document.getElementById('f-email').value.trim(),
+        emRows.map(function(x){ return x.em; }).join(', '),
+        date, heure, m2t(t2m(heure)+dur), dur);
     });
   }
   req.then(function(){ closeModal(); updateStats(); render(); })
